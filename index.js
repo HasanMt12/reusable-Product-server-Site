@@ -20,8 +20,9 @@ async function run(){
     try{
         const productCollections = client.db('reusableProductSell').collection('sellProduct')
         const categoryCollections = client.db('reusableProductSell').collection('category')
-
-          // get all categories
+        const reservationCollections = client.db('reusableProductSell').collection('reservation')
+         
+            // get all categories
           app.get("/categories", async (req, res) => {
               const query = {};
               const categories = await categoryCollections.find(query).toArray();
@@ -35,6 +36,13 @@ async function run(){
                 const result = await productCollections.find(query).toArray();
                 res.send(result);
             });
+
+        app.post('/reservation', async (req, res) => {
+            const reservation = req.body
+            console.log(reservation);
+            const result = await reservationCollections.insertOne(reservation);
+            res.send(result);
+        })
         
     }
     finally{
