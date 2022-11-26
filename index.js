@@ -21,6 +21,7 @@ async function run(){
         const productCollections = client.db('reusableProductSell').collection('sellProduct')
         const categoryCollections = client.db('reusableProductSell').collection('category')
         const reservationCollections = client.db('reusableProductSell').collection('reservation')
+        const usersCollections = client.db('reusableProductSell').collection('users')
          
             // get all categories
           app.get("/categories", async (req, res) => {
@@ -37,13 +38,36 @@ async function run(){
                 res.send(result);
             });
 
+            //reservation/bookings post by mongoDb
+
         app.post('/reservation', async (req, res) => {
             const reservation = req.body
             console.log(reservation);
             const result = await reservationCollections.insertOne(reservation);
             res.send(result);
         })
+
+        app.get('/reservation', async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const reservation = await reservationCollections.find(query).toArray();
+            res.send(reservation);
+        })
+
+        app.post('/users', async(req , res) => {
+            const user = req.body;
+           
+            const result = await usersCollections.insertOne(user);
+            res.send(result);
+        })
         
+        app.get('/users' , async(req , res) =>{
+            const query = {} ; 
+            const users = await usersCollections.find(query).toArray();
+            res.send(users);
+        })
+
+        app.pa
     }
     finally{
 
