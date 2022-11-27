@@ -3,6 +3,7 @@ const cors = require('cors')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET);
 const port = process.env.PORT || 5000;
 const app = express();
 
@@ -40,19 +41,26 @@ async function run(){
         const categoryCollections = client.db('reusableProductSell').collection('category')
         const reservationCollections = client.db('reusableProductSell').collection('reservation')
         const usersCollections = client.db('reusableProductSell').collection('users')
-         
+        const sellerProductCollections = client.db('reusableProductSell').collection('sellerProduct')
+        const paymentsCollections = client.db('reusableProductSell').collection('payment')
                      // get all categories and show HOME page
           app.get("/categories", async (req, res) => {
               const query = {};
+            
               const categories = await categoryCollections.find(query).toArray();
               res.send(categories);
           });
 
                     // get single category product by name and show dynamic route
+                    //and seller  category product also added dynamically
             app.get("/categories/:name", async (req, res) => {
                 const name = req.params.name;
                 const query = { categoryName: name };
-                const result = await productCollections.find(query).toArray();
+                
+                const globalProduct = await productCollections.find(query).toArray();
+                const sellerProduct = await sellerProductCollections.find(query).toArray();
+                const result = [...globalProduct, ...sellerProduct]
+
                 res.send(result);
             });
 
@@ -62,6 +70,13 @@ async function run(){
             console.log(reservation);
             const result = await reservationCollections.insertOne(reservation);
             res.send(result);
+        })
+
+        app.get('/reservation/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const reserve = await reservationCollections.findOne(query);
+            res.send(reserve);
         })
 
                     //get reservation data and send client side
@@ -103,7 +118,7 @@ async function run(){
             const users = await usersCollections.find(query).toArray();
             res.send(users);
         })
-
+            //all user find and protect admin route
         app.get('/users/admin/:email', async (req, res) => {
             const email = req.params.email;
             const query = { email }
@@ -125,6 +140,55 @@ async function run(){
               const result = await usersCollections.updateOne(filter,  updatedDoc, options);
               res.send(result);
            });
+
+                // add product to the database
+           app.post('/product', async(req, res) => {
+                const product = req.body;
+                const result = await sellerProductCollections.insertOne(product);
+                res.send(result);
+           })
+
+                //get product by database 
+           app.get('/product', async(req, res) => {
+            const query = {} 
+            const product = await sellerProductCollections.find(query).toArray();
+            res.send(product);
+           })
+
+            app.post('/create-payment-intent', async (req, res) => {
+                const bookingData = req.body;
+                const price = bookingData.price;
+                const amount = price * 100;
+                const paymentIntent = await stripe.paymentIntents.create({
+                  currency: 'usd',
+                   amount: amount,
+                "payment_method_types": [
+                    "card"
+                ]
+                });
+                  res.send({
+                  clientSecret: paymentIntent.client_secret,
+                });
+              })
+
+              app.post('/payments', async (req, res) =>{
+                const payment = req.body;
+                const result = await paymentsCollections.insertOne(payment);
+                const id = payment.bookingId
+                const filter = {_id: ObjectId(id)}
+                const updatedDoc = {
+                    $set: {
+                        paid: true,
+                        transactionId: payment.transactionId
+                    }
+                }
+                const updatedResult = await reservationCollections.updateOne(filter, updatedDoc)
+          
+            res.send(result);
+        })
+
+
+
 
            
     }
