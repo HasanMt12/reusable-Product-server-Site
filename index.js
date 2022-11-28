@@ -26,7 +26,7 @@ function verifyJWT(req, res, next){
     }
     const token =  authHeader.split(' ')[1];
 
-    jwt.verify(token, process.env.ACCESS_TOKEN, function(err, decoded){
+    jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
         if(err){
             return res.status(403).send({message: 'forbidden access'})
         }
@@ -43,6 +43,31 @@ async function run(){
         const usersCollections = client.db('reusableProductSell').collection('users')
         const sellerProductCollections = client.db('reusableProductSell').collection('sellerProduct')
         const paymentsCollections = client.db('reusableProductSell').collection('payment')
+
+            // admin middleware
+            const verifyAdmin = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail };
+            const user = await usersCollections.findOne(query);
+
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+        }   
+         const verifySeller = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail };
+            const user = await usersCollections.findOne(query);
+
+            if (user?.role !== 'seller') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+        }
+
+
+
                      // get all categories and show HOME page
           app.get("/categories", async (req, res) => {
               const query = {};
@@ -112,11 +137,17 @@ async function run(){
             res.send(result);
         })
         
-                    //get all users by database and send data to client side
+             //get all users by database and send data to client side
         app.get('/users' , async(req , res) =>{
             const query = {} ; 
             const users = await usersCollections.find(query).toArray();
             res.send(users);
+        })
+        app.get('/users:email' , async(req , res) =>{
+            const email = req.params.email;
+            const query = { email : email }
+            const user = await usersCollections.find(query).toArray();
+            res.send(user);
         })
             //all user find and protect admin route
         app.get('/users/admin/:email', async (req, res) => {
@@ -126,7 +157,7 @@ async function run(){
             res.send({ isAdmin: user?.role === 'admin'});
         })
         
-        // update seller account to verified
+             // update seller account to verified
         app.put('/users/admin/:id',  async(req , res) => {
            
             const id = req.params.id;
@@ -141,6 +172,15 @@ async function run(){
               res.send(result);
            });
 
+           app.delete('/users/:id',  verifyJWT, verifyAdmin,  async(req , res) => {
+            const id = req.params.id;
+            const filter = {_id: ObjectId(id)};
+            const result = await usersCollections.deleteOne(filter);
+            res.send(result)
+           })
+
+          
+
                 // add product to the database
            app.post('/product', async(req, res) => {
                 const product = req.body;
@@ -149,12 +189,25 @@ async function run(){
            })
 
                 //get product by database 
-           app.get('/product', async(req, res) => {
-            const query = {} 
-            const product = await sellerProductCollections.find(query).toArray();
-            res.send(product);
+        //    app.get('/product', async(req, res) => {
+        //     const query = {} 
+        //     const product = await sellerProductCollections.find(query).toArray();
+        //     res.send(product);
+        //    })
+        app.get('/product', async(req , res) =>{
+            const email = req.query.email;
+            const query = {email: email};
+            const products = await sellerProductCollections.find(query).toArray();
+            res.send(products);
+        })
+            // delete seller product
+            app.delete('/product/:id', verifyJWT , verifySeller,  async(req , res) => {
+            const id = req.params.id;
+            const filter = {_id: ObjectId(id)};
+            const result = await sellerProductCollections.deleteOne(filter);
+            res.send(result)
            })
-
+            //payment method 
             app.post('/create-payment-intent', async (req, res) => {
                 const bookingData = req.body;
                 const price = bookingData.price;
@@ -170,7 +223,7 @@ async function run(){
                   clientSecret: paymentIntent.client_secret,
                 });
               })
-
+              //payment method update paid 
               app.post('/payments', async (req, res) =>{
                 const payment = req.body;
                 const result = await paymentsCollections.insertOne(payment);
@@ -182,10 +235,43 @@ async function run(){
                         transactionId: payment.transactionId
                     }
                 }
-                const updatedResult = await reservationCollections.updateOne(filter, updatedDoc)
-          
-            res.send(result);
+                const updatedResult = await sellerProductCollections.updateOne(filter, updatedDoc)
+            // if(!updatedDoc.modifiedCount){
+            //     const sellerUpdate ={
+            //          $set: {
+            //             paid: true,
+            //             status : true,
+            //             transactionId: payment.transactionId
+            //         }
+            //     };
+            //      const sellerProductUpdate = await sellerProductCollections.updateOne(filter, sellerUpdate);
+            // }    
+         
+            res.send(result );
         })
+
+
+        app.get('/users/seller/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email }
+            const user = await usersCollections.findOne(query);
+            res.send({ isSeller: user?.role === 'seller'});
+        })
+
+
+  
+        app.get("/users/seller", async (req, res) => {
+        const query = { role: "seller" };
+        const sellers = await usersCollections.find(query).toArray();
+        res.send(sellers);
+        });
+
+
+        app.get("/users/buyer", async (req, res) => {
+        const query = { role: "buyer" };
+        const sellers = await usersCollections.find(query).toArray();
+        res.send(sellers);
+        });
 
 
 
