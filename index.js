@@ -55,6 +55,7 @@ async function run(){
             }
             next();
         }   
+        //seller middleware
          const verifySeller = async (req, res, next) => {
             const decodedEmail = req.decoded.email;
             const query = { email: decodedEmail };
@@ -104,6 +105,15 @@ async function run(){
             res.send(reserve);
         })
 
+
+        // app.get(' ', async (req, res) => {
+        //     const id = req.params.id;
+        //     const query = { _id: ObjectId(id) };
+        //     const pro = await productCollections.findOne(query);
+        //     const sell = await sellerProductCollections.findOne(query)
+        //     res.send({pro , sell});
+        // })
+
                     //get reservation data and send client side
         app.get('/reservation', verifyJWT, async (req, res) => {
             const email = req.query.email;
@@ -117,7 +127,7 @@ async function run(){
             res.send(reservation);
         })
 
-
+            //jwt 
         app.get('/jwt', async(req , res) => {
             const email = req.query.email;
             const query = {email: email};
@@ -143,6 +153,8 @@ async function run(){
             const users = await usersCollections.find(query).toArray();
             res.send(users);
         })
+
+
         app.get('/users:email' , async(req , res) =>{
             const email = req.params.email;
             const query = { email : email }
@@ -194,6 +206,9 @@ async function run(){
         //     const product = await sellerProductCollections.find(query).toArray();
         //     res.send(product);
         //    })
+
+
+        //get seller add product
         app.get('/product', async(req , res) =>{
             const email = req.query.email;
             const query = {email: email};
@@ -207,6 +222,8 @@ async function run(){
             const result = await sellerProductCollections.deleteOne(filter);
             res.send(result)
            })
+
+
             //payment method 
             app.post('/create-payment-intent', async (req, res) => {
                 const bookingData = req.body;
@@ -223,6 +240,9 @@ async function run(){
                   clientSecret: paymentIntent.client_secret,
                 });
               })
+
+
+
               //payment method update paid 
               app.post('/payments', async (req, res) =>{
                 const payment = req.body;
@@ -274,6 +294,27 @@ async function run(){
         });
 
 
+        app.post("/advertise", async (req, res) => {
+      const advertised = req.body;
+      const query = {
+        _id: advertised._id,
+      };
+      console.log(query);
+      const alreadyBooked = await advertiseCollection.find(query).toArray();
+      if (alreadyBooked.length > 0) {
+        const message = ('You already have advertised ${advertised.name}');
+        return res.send({ acknowledged: false, message });
+      }
+      const result = await advertiseCollection.insertOne(advertised);
+      res.send(result);
+    });
+
+
+    app.get("/advertise", async (req, res) => {
+      const query = {};
+      const result = await advertiseCollection.find(query).toArray();
+      res.send(result);
+    });
 
 
            
