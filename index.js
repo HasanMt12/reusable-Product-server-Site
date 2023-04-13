@@ -43,8 +43,10 @@ async function run(){
         const usersCollections = client.db('reusableProductSell').collection('users')
         const sellerProductCollections = client.db('reusableProductSell').collection('sellerProduct')
         const paymentsCollections = client.db('reusableProductSell').collection('payment')
-
-            // admin middleware
+        const advertiseCollections = client.db('reusableProductSell').collection('adPost')
+        const wishlistCollections = client.db('reusableProductSell').collection('wishlist')
+        const allProductCollections = client.db('reusableProductSell').collection('allproduct')
+        // admin middleware
             const verifyAdmin = async (req, res, next) => {
             const decodedEmail = req.decoded.email;
             const query = { email: decodedEmail };
@@ -61,11 +63,12 @@ async function run(){
             const query = { email: decodedEmail };
             const user = await usersCollections.findOne(query);
 
-            if (user?.role !== 'seller') {
+            if (user?.role !== 'mentor') {
                 return res.status(403).send({ message: 'forbidden access' })
             }
             next();
         }
+      
 
 
 
@@ -103,6 +106,11 @@ async function run(){
             const query = { _id: ObjectId(id) };
             const reserve = await reservationCollections.findOne(query);
             res.send(reserve);
+        })
+        app.get('/allproduct', async (req, res) => {
+            const query = {};
+            const allproduct = await allProductCollections.find(query).toArray();
+            res.send(allproduct);
         })
 
 
@@ -270,25 +278,25 @@ async function run(){
             res.send(result );
         })
 
-
+// get specific seller id
         app.get('/users/seller/:email', async (req, res) => {
             const email = req.params.email;
             const query = { email }
             const user = await usersCollections.findOne(query);
-            res.send({ isSeller: user?.role === 'seller'});
+            res.send({ isSeller: user?.role === 'mentor'});
         })
 
 
-  
+  // get all seller id 
         app.get("/users/seller", async (req, res) => {
-        const query = { role: "seller" };
+        const query = { role: "mentor" };
         const sellers = await usersCollections.find(query).toArray();
         res.send(sellers);
         });
 
-
+     //get all buyer id
         app.get("/users/buyer", async (req, res) => {
-        const query = { role: "buyer" };
+        const query = { role: "mentee" };
         const sellers = await usersCollections.find(query).toArray();
         res.send(sellers);
         });
@@ -300,22 +308,35 @@ async function run(){
         _id: advertised._id,
       };
       console.log(query);
-      const alreadyBooked = await advertiseCollection.find(query).toArray();
+      const alreadyBooked = await advertiseCollections.find(query).toArray();
       if (alreadyBooked.length > 0) {
         const message = ('You already have advertised ${advertised.name}');
         return res.send({ acknowledged: false, message });
       }
-      const result = await advertiseCollection.insertOne(advertised);
+      const result = await advertiseCollections.insertOne(advertised);
       res.send(result);
     });
 
 
     app.get("/advertise", async (req, res) => {
       const query = {};
-      const result = await advertiseCollection.find(query).toArray();
+      const result = await advertiseCollections.find(query).toArray();
       res.send(result);
     });
 
+
+    app.post("/wishlist", async (req, res) => {
+        const wishlist = req.body;
+        const result = await wishlistCollections.insertOne(wishlist);
+        res.send(result);
+    });
+
+    app.get('/wishlist',async (req,res)=>{
+const email = req.query.email
+const query = {email: email}
+const wishlist = await wishlistCollections.find(query).toArray();
+res.send(wishlist);
+})
 
            
     }
