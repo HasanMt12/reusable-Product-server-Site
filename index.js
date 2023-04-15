@@ -48,6 +48,37 @@ async function run(){
         const advertiseCollections = client.db('reusableProductSell').collection('adPost')
         const wishlistCollections = client.db('reusableProductSell').collection('wishlist')
         const allProductCollections = client.db('reusableProductSell').collection('allproduct')
+        const blogCollections = client.db('reusableProductSell').collection('allBlog')
+      
+        app.post("/blog", async (req, res) => {
+               try {
+        const doctor = req.body;
+        const result = await blogCollections.insertOne(doctor);
+        res.status(200).send(result);
+    } catch (error) {
+        res.send({
+            error: error.message
+        });
+    }
+});
+
+ app.get('/blog', async (req, res) => {
+      const query = {};
+      const users = await blogCollections.find(query).toArray();
+      res.send(users);
+    })
+
+
+  try {
+  app.delete("/blog/:id", async (req, res) => {
+    const id = req.params.id;
+    const filter = { _id: ObjectId(id) };
+    const results = await blogCollections.deleteOne(filter);
+    res.send({  results });
+  });
+} catch (error) {
+  res.status(404).send({ error: error.message });
+}
         // admin middleware
             const verifyAdmin = async (req, res, next) => {
             const decodedEmail = req.decoded.email;
@@ -293,6 +324,13 @@ async function run(){
         app.get("/users/seller", async (req, res) => {
         const query = { role: "mentor" };
         const sellers = await usersCollections.find(query).toArray();
+        res.send(sellers);
+        });
+
+        app.get("/users/:id", async (req, res) => {
+        const id = req.params.id;
+        const filter = {_id: ObjectId(id)};
+        const sellers = await usersCollections.findOne(filter);
         res.send(sellers);
         });
 
